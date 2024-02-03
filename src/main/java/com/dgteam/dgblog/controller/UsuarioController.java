@@ -3,6 +3,7 @@ package com.dgteam.dgblog.controller;
 import java.util.List;
 import java.util.Optional;
 
+import com.dgteam.dgblog.utils.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.http.HttpStatus;
@@ -27,52 +28,62 @@ public class UsuarioController {
     @Autowired
     private UsuarioService usuarioService;
 
-    @GetMapping("/Listusuarios")
-    public ResponseEntity<List<Usuario>> getAll() {
+    @GetMapping("/usuarios")
+    public ResponseEntity<ApiResponse> getAll() {
         List<Usuario> usuarios = usuarioService.getAll();
 
         if (!usuarios.isEmpty()) {
-            return ResponseEntity.ok(usuarios);
+            return ResponseEntity.ok(new ApiResponse("Success", usuarios));
         } else {
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                    .body(new ApiResponse("Error", "No se encontraron usuarios."));
         }
     }
 
-    @PostMapping("/Crearusuarios")
-    public ResponseEntity<Usuario> save(@RequestBody Usuario usuario) {
+
+    @PostMapping("/usuario")
+    public ResponseEntity<ApiResponse> save(@RequestBody Usuario usuario) {
+        // Verificar si el correo electrónico ya existe
+        if (usuarioService.existsByEmail(usuario.getEmail())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse("Error", "El correo electrónico ya está registrado."));
+        }
+
+        // Si el correo electrónico no existe, intentar guardar el usuario
+        Usuario savedUsuario = usuarioService.save(usuario);
+        if (savedUsuario != null) {
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ApiResponse("Success", savedUsuario));
+        } else {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse("Error", "Error al intentar guardar el usuario."));
+        }
+    }
+
+    @PutMapping("/usuario")
+    public ResponseEntity<ApiResponse> update(@RequestBody Usuario usuario) {
         Usuario savedUsuario = usuarioService.save(usuario);
 
         if (savedUsuario != null) {
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedUsuario);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ApiResponse("Success", savedUsuario));
         } else {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse("Error", "Error al intentar actualizar el usuario."));
         }
     }
 
-    @PutMapping("/ActualizarUsuario")
-    public ResponseEntity<Usuario> update(@RequestBody Usuario usuario) {
-        Usuario savedUsuario = usuarioService.save(usuario);
-
-        if (savedUsuario != null) {
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedUsuario);
-        } else {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @GetMapping("/usuario")
+    public ResponseEntity<ApiResponse> getUserById(@RequestParam("id") int id) {
+        return usuarioService.getId(id)
+                .map(usuario -> ResponseEntity.ok(new ApiResponse("Success", usuario)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse("Error", "Usuario no encontrado")));
     }
 
-    @GetMapping("/BuscarPorId")
-    public ResponseEntity<Usuario> getUserById(@RequestParam("id") int id) {
-        Optional<Usuario> optionalUsuario = usuarioService.getId(id);
 
-        if (optionalUsuario.isPresent()) {
-            return ResponseEntity.ok(optionalUsuario.get());
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
 
-    @DeleteMapping("/DeleteUsuario")
-    public ResponseEntity<Void> deleteById(@RequestParam("id") int id) {
+    @DeleteMapping("/usuario")
+    public ResponseEntity<ApiResponse> deleteById(@RequestParam("id") int id) {
         Optional<Usuario> optionalUsuario = usuarioService.getId(id);
 
         if (optionalUsuario.isPresent()) {
