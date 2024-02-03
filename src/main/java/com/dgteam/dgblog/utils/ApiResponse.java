@@ -1,4 +1,5 @@
-package com.dgteam.dgblog;
+package com.dgteam.dgblog.utils;
+
 
 public class ApiResponse {
     private String status;
